@@ -78,7 +78,7 @@ def consultar(claves, inicio, fin, token):
         headers={
             "Bmx-Token": token,
             "Accept": "application/json",
-            "User-Agent": "UPQ-IDIA224/1.0",
+            "User-Agent": "UPQ-IDIA222/1.0",
         },
         timeout=60,
     )
@@ -257,22 +257,31 @@ with abajo_izq:
     st.pyplot(fig)
 
 with abajo_der:
-    st.subheader("Promedio por mes y año")
-    calor = principal.pivot_table(index="Anio", columns="Mes",
-                                  values="Valor", aggfunc="mean")
+    # SE QUITÓ el mapa de calor "Promedio por mes y año": mostraba el mismo
+    # nivel de la serie que ya se ve en la primera gráfica, solo que en
+    # colores, y un tipo de cambio no tiene estacionalidad por mes que
+    # justifique acomodarlo así.
+    # SE AÑADIÓ esta gráfica: responde en una sola vista cuánto ganó o
+    # perdió la serie en cada año completo, algo que no da ninguna otra.
+    st.subheader("Cuánto cambió en cada año")
+    # Cierre de cada año contra el cierre del año anterior. El primer año
+    # se compara contra su primer dato, porque no hay cierre previo.
+    cierres = principal.groupby("Anio")["Valor"].last()
+    aperturas = principal.groupby("Anio")["Valor"].first()
+    referencia = cierres.shift(1).fillna(aperturas)
+    anual = (cierres / referencia - 1) * 100
 
     fig, ax = plt.subplots(figsize=(6, 3.4))
-    imagen = ax.imshow(calor, cmap="YlGnBu", aspect="auto")
-    fig.colorbar(imagen, ax=ax)
-    ax.set_xticks(range(len(calor.columns)))
-    ax.set_xticklabels(["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul",
-                        "Ago", "Sep", "Oct", "Nov", "Dic"][:len(calor.columns)])
-    ax.set_yticks(range(len(calor.index)))
-    ax.set_yticklabels(calor.index)
-    ax.grid(False)
+    barras = ax.bar(anual.index.astype(str), anual.values,
+                    color=[ROJO if v > 0 else AZUL_POS for v in anual.values])
+    ax.bar_label(barras, fmt="%+.1f %%", padding=2, fontsize=9)
+    ax.axhline(0, color="gray", linewidth=0.8)
+    ax.margins(y=0.2)
+    ax.set_xlabel("Año")
+    ax.set_ylabel("Cambio en el año (%)")
     st.pyplot(fig)
-    st.caption("Escala secuencial: el valor tiene orden pero no un cero "
-               "con significado, así que no va divergente.")
+    st.caption("Cierre de cada año contra el cierre del anterior. "
+               "Mismos colores que la gráfica mensual: rojo subió, azul bajó.")
 
 
 # ─── Datos ─────────────────────────────────────────────────────────────
